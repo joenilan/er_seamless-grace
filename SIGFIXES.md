@@ -8,7 +8,7 @@ until the patch mechanism ships, entries hold at `diagnosed`.
 
 ## SIGFIX #1 — signatures.cpp:1399 — spawn-init helper anchor (2026-08-30)
 
-**Status: diagnosed, patch pending (mechanism not built yet)**
+**Status: patch built & installed — awaiting user launch test**
 
 - Failing pattern (from fatal dialog):
   `E8 ? ?? ?? ?? 48 8B 15 ? ?? ?? ?? 48 8D 4B 20`
@@ -38,10 +38,23 @@ Compiler register-allocation swap: object ptr moved rbx→rdi. One nibble.
   displacement moved 0x20→0x58 AND surrounding context differs (misaligned
   prologue, different call target shape). Not the same source line.
 
-**Fix (pending mechanism)**: the scan-time pattern for this signature must
-accept `48 8D 47 20` where it expected `48 8D 4B 20` — i.e. pattern becomes
-`E8 ? ?? ?? ?? 48 8B 15 ? ?? ?? ?? 48 8D 47 20` (or generalized `48 8D 4? 20`).
-See AGENTS.md for why we do NOT byte-patch eldenring.exe itself.
+**Fix — code-cave detour in ersc.dll (see `tools/patch_sigfix1.py`)**
 
-**After this fix**: relaunch; expect the next failing signature in the dialog
-(abort stops at first failure). Repeat loop documented in AGENTS.md.
+RE established: `F_scan = 0x1800d4d80` (286 call sites) receives the pattern
+as a decrypted **std::string_view** (`rdx` = {data@0, size@8}) — the scan
+parses the pattern TEXT in-place. So the fix is an entry detour:
+
+- `0x1800d4d80`: `jmp 0x18018d636` + `nop` (6 bytes over the 3 prologue pushes)
+- cave at RVA `0x18d636` (CC tail padding past .text VSize — executable):
+  if size==45 && data starts `"E8 ? "` && data[41]=='B' → data[41]='7';
+  then executes the displaced pushes and jumps back to `0x1800d4d86`.
+- Total file diff: 65 bytes, all inside `.text`.
+
+Installed to `Game\SeamlessCoop\ersc.dll`; original preserved as
+`ersc.dll.vanilla.bak` (2026-07-28 stock v1.9.9).
+
+**Test outcome**: (pending — launch via ersc_launcher.exe)
+- in-game → pass; look for runtime oddities near spawn/init code
+- NEW dialog with a different pattern → progress; loop per AGENTS.md
+- silent crash / no dialog → suspect Themida .text CRC; fall back to
+  companion-DLL mechanism (AGENTS.md design decision #2)
