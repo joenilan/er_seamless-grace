@@ -1,0 +1,24 @@
+# Grace never ships anyone's copyrighted binaries.
+dist/
+*.dll
+*.exe
+!tools/**
+*.bdt
+*.bhd
+*.dmp
+*.zip
+
+# analysis dumps / large artifacts
+*.mem
+*.bin.dmp
+scan_results.json
+patterns.json
+
+# python
+__pycache__/
+*.pyc
+
+# builds
+build/
+*.obj
+*.o
